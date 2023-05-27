@@ -6,3 +6,9 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.setting-item-extra-info::before {
+    content: 'ⓘ';
+    display: inline-block;
+    padding-right: 5px;
+}
