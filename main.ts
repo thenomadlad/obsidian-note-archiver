@@ -132,10 +132,7 @@ export default class NoteArchiverPlugin extends Plugin {
 
 		// make sure the folder for the file exists
 		let newFolder = dirname(newPath);
-		console.log("Attempting to check and create folder " + newFolder);
-		console.log(this.app.vault.getAbstractFileByPath(newFolder));
 		if (this.app.vault.getAbstractFileByPath(newFolder) === null) {
-			console.log("Attempting to create it");
 			await this.app.vault.createFolder(newFolder);
 		}
 
@@ -202,7 +199,6 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 			let abstractFile = this.app.vault.getAbstractFileByPath(
 				normalizePath(folder)
 			);
-			console.log(abstractFile);
 			if (!abstractFile) {
 				folderPathHelpMessage.textContent =
 					"Folder not in vault, it will be created when you archive a note here";
