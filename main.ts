@@ -2,7 +2,7 @@ import {
 	App,
 	Editor,
 	MarkdownView,
-	Modal,
+	Notice,
 	Plugin,
 	PluginSettingTab,
 	Setting,
@@ -11,17 +11,19 @@ import {
 } from "obsidian";
 import { join, dirname } from "path";
 
-const ARCHIVE_FOLDER_GROUPINGS = ['NoGrouping', 'Year', 'Month'] as const;
-type ArchiveFolderGrouping = typeof ARCHIVE_FOLDER_GROUPINGS[number];
+const ARCHIVE_FOLDER_GROUPINGS = ["NoGrouping", "Year", "Month"] as const;
+type ArchiveFolderGrouping = (typeof ARCHIVE_FOLDER_GROUPINGS)[number];
 
 interface NoteArchiverSettings {
+	version: string;
 	archiveFolderName: string;
 	grouping: ArchiveFolderGrouping;
 }
 
 const DEFAULT_SETTINGS: NoteArchiverSettings = {
+	version: "0.1.0",
 	archiveFolderName: "Archive",
-	grouping: 'NoGrouping',
+	grouping: "NoGrouping",
 };
 
 export default class NoteArchiverPlugin extends Plugin {
@@ -34,9 +36,15 @@ export default class NoteArchiverPlugin extends Plugin {
 		this.addCommand({
 			id: "note-archiver-archive-current-note",
 			name: "Archive current note",
-			editorCheckCallback: (checking: boolean, editor: Editor, view: MarkdownView) => {
+			editorCheckCallback: (
+				checking: boolean,
+				editor: Editor,
+				view: MarkdownView
+			) => {
 				if (checking) {
-					return !view.file.path.startsWith(this.settings.archiveFolderName)
+					return !view.file.path.startsWith(
+						this.settings.archiveFolderName
+					);
 				} else {
 					this.archivePage(view.file.path);
 					return true;
@@ -65,7 +73,10 @@ export default class NoteArchiverPlugin extends Plugin {
 				menu.addItem((item) => {
 					let path = view.file?.path;
 
-					if (path && !path.startsWith(this.settings.archiveFolderName)) {
+					if (
+						path &&
+						!path.startsWith(this.settings.archiveFolderName)
+					) {
 						item.setTitle("📤 Archive file")
 							.setIcon("document")
 							.onClick(async () => {
@@ -87,16 +98,32 @@ export default class NoteArchiverPlugin extends Plugin {
 
 		// get and create archive folder
 		let archiveFolder = this.settings.archiveFolderName;
-		if (this.settings.grouping === 'NoGrouping') {
+		if (this.settings.grouping === "NoGrouping") {
 			archiveFolder = this.settings.archiveFolderName;
 		} else {
-			if (this.settings.grouping === 'Year') {
+			if (this.settings.grouping === "Year") {
 				let year = new Date().getFullYear();
-				archiveFolder = normalizePath(join(this.settings.archiveFolderName, `${year}`));
-			} else if (this.settings.grouping === 'Month') {
-				let year = new Date().getFullYear();
-				let month = new Date().getMonth();
-				archiveFolder = normalizePath(join(this.settings.archiveFolderName, `${year}`, `${month}`));
+
+				archiveFolder = normalizePath(
+					join(this.settings.archiveFolderName, `${year}`)
+				);
+			} else if (this.settings.grouping === "Month") {
+				let now = new Date();
+				let year = now.getFullYear();
+				let paddedMonthNumber = (now.getMonth() + 1)
+					.toString()
+					.padStart(2, "0");
+				let monthName = now.toLocaleString("default", {
+					month: "long",
+				});
+
+				archiveFolder = normalizePath(
+					join(
+						this.settings.archiveFolderName,
+						`${year}`,
+						`${paddedMonthNumber}-${monthName}`
+					)
+				);
 			}
 		}
 
@@ -116,7 +143,7 @@ export default class NoteArchiverPlugin extends Plugin {
 		await this.app.vault.copy(targetFile, newPath);
 		await this.app.vault.delete(targetFile);
 
-		new FileMoveNoticeModal(this.app, `${path} moved to ${newPath}`).open();
+		new Notice(`${path} moved to ${newPath}`);
 	}
 
 	async loadSettings() {
@@ -129,25 +156,6 @@ export default class NoteArchiverPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
-
-class FileMoveNoticeModal extends Modal {
-	text = "";
-	
-	constructor(app: App, text: string) {
-		super(app);
-		this.text = text;
-	}
-
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText(this.text);
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
 	}
 }
 
@@ -179,44 +187,65 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 						this.plugin.settings.archiveFolderName = folder;
 						await this.plugin.saveSettings();
 
-						updateFolderPathHelpMessage(this.plugin.settings.archiveFolderName);
+						updateFolderPathHelpMessage(
+							this.plugin.settings.archiveFolderName
+						);
 					})
 			);
 
 		// helper message for folder path not existing
-		let folderPathHelpMessage = folderPathSetting.infoEl.createEl("p", {text: "", cls: ["setting-item-description", "setting-item-extra-info"]});
+		let folderPathHelpMessage = folderPathSetting.infoEl.createEl("p", {
+			text: "",
+			cls: ["setting-item-description", "setting-item-extra-info"],
+		});
 		let updateFolderPathHelpMessage = (folder: string) => {
-			let abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(folder));
+			let abstractFile = this.app.vault.getAbstractFileByPath(
+				normalizePath(folder)
+			);
 			console.log(abstractFile);
 			if (!abstractFile) {
-				folderPathHelpMessage.textContent = "Folder not in vault, it will be created when you archive a note here";
+				folderPathHelpMessage.textContent =
+					"Folder not in vault, it will be created when you archive a note here";
 			} else {
 				if (abstractFile instanceof TFile) {
-					folderPathHelpMessage.textContent = "File exists with this name, you can't archive anything until you change this";
+					folderPathHelpMessage.textContent =
+						"File exists with this name, you can't archive anything until you change this";
 				} else {
-					folderPathHelpMessage.textContent = "Folder exists, all good";
+					folderPathHelpMessage.textContent =
+						"Folder exists, all good";
 				}
 			}
-		}
+		};
 		updateFolderPathHelpMessage(this.plugin.settings.archiveFolderName);
 
 		new Setting(containerEl)
 			.setName("Group by")
 			.setDesc("Should I group your archived files?")
 			.addDropdown((dropdown) =>
-					dropdown
-						.addOption("NoGrouping", "Don't group my files")
-						.addOption("Year", "Group by year file is archived")
-						.addOption("Month", "Group by year and month file is archived")
-						.setValue(this.plugin.settings.grouping)
-						.onChange(async (value) => {
-							if (!ARCHIVE_FOLDER_GROUPINGS.find((validName) => value === validName)) {
-								throw new Error("Unable to parse ArchiveFolderGrouping from value " + value);
-							}
+				dropdown
+					.addOption("NoGrouping", "Don't group my files")
+					.addOption("Year", "Group by year file is archived")
+					.addOption(
+						"Month",
+						"Group by year and month file is archived"
+					)
+					.setValue(this.plugin.settings.grouping)
+					.onChange(async (value) => {
+						if (
+							!ARCHIVE_FOLDER_GROUPINGS.find(
+								(validName) => value === validName
+							)
+						) {
+							throw new Error(
+								"Unable to parse ArchiveFolderGrouping from value " +
+									value
+							);
+						}
 
-							this.plugin.settings.grouping = value as ArchiveFolderGrouping;
-							await this.plugin.saveSettings();
-						})
+						this.plugin.settings.grouping =
+							value as ArchiveFolderGrouping;
+						await this.plugin.saveSettings();
+					})
 			);
 	}
 }
