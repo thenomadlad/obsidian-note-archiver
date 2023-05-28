@@ -169,8 +169,6 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Settings for my awesome plugin." });
-
 		// folder path
 		let folderPathSetting = new Setting(containerEl)
 			.setName("Archive folder")
