@@ -9,7 +9,6 @@ import {
 	TFile,
 	normalizePath,
 } from "obsidian";
-import { join, dirname } from "path";
 
 const ARCHIVE_FOLDER_GROUPINGS = ["NoGrouping", "Year", "Month"] as const;
 type ArchiveFolderGrouping = (typeof ARCHIVE_FOLDER_GROUPINGS)[number];
@@ -34,7 +33,7 @@ export default class NoteArchiverPlugin extends Plugin {
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
-			id: "note-archiver-archive-current-note",
+			id: "archive-current-note",
 			name: "Archive current note",
 			editorCheckCallback: (
 				checking: boolean,
@@ -137,8 +136,7 @@ export default class NoteArchiverPlugin extends Plugin {
 		}
 
 		// move the file
-		await this.app.vault.copy(targetFile, newPath);
-		await this.app.vault.delete(targetFile);
+		await this.app.fileManager.renameFile(targetFile, newPath);
 
 		new Notice(`${path} moved to ${newPath}`);
 	}
