@@ -9,6 +9,7 @@ import {
 	TFile,
 	normalizePath,
 } from "obsidian";
+import { dirname, join } from "path";
 
 const ARCHIVE_FOLDER_GROUPINGS = ["NoGrouping", "Year", "Month"] as const;
 type ArchiveFolderGrouping = (typeof ARCHIVE_FOLDER_GROUPINGS)[number];
