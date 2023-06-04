@@ -9,7 +9,6 @@ import {
 	TFile,
 	normalizePath,
 } from "obsidian";
-import { dirname, join } from "path";
 
 const ARCHIVE_FOLDER_GROUPINGS = ["NoGrouping", "Year", "Month"] as const;
 type ArchiveFolderGrouping = (typeof ARCHIVE_FOLDER_GROUPINGS)[number];
@@ -105,7 +104,7 @@ export default class NoteArchiverPlugin extends Plugin {
 				let year = new Date().getFullYear();
 
 				archiveFolder = normalizePath(
-					join(this.settings.archiveFolderName, `${year}`)
+					`${this.settings.archiveFolderName}/${year}`
 				);
 			} else if (this.settings.grouping === "Month") {
 				let now = new Date();
@@ -118,20 +117,16 @@ export default class NoteArchiverPlugin extends Plugin {
 				});
 
 				archiveFolder = normalizePath(
-					join(
-						this.settings.archiveFolderName,
-						`${year}`,
-						`${paddedMonthNumber}-${monthName}`
-					)
+						`${this.settings.archiveFolderName}/${year}/${paddedMonthNumber}-${monthName}`
 				);
 			}
 		}
 
 		// new path for archived file
-		let newPath = normalizePath(join(archiveFolder, path));
+		let newPath = normalizePath(`${archiveFolder}/${path}`);
 
 		// make sure the folder for the file exists
-		let newFolder = dirname(newPath);
+		let newFolder = newPath.substring(0, newPath.lastIndexOf('/'));
 		if (this.app.vault.getAbstractFileByPath(newFolder) === null) {
 			await this.app.vault.createFolder(newFolder);
 		}
