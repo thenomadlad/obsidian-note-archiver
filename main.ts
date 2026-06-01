@@ -10,7 +10,7 @@ import {
 	normalizePath,
 } from "obsidian";
 
-const ARCHIVE_FOLDER_GROUPINGS = ["NoGrouping", "Year", "Month"] as const;
+const ARCHIVE_FOLDER_GROUPINGS = ["NoGrouping", "Year", "Month", "YearCreated", "MonthCreated"] as const;
 type ArchiveFolderGrouping = (typeof ARCHIVE_FOLDER_GROUPINGS)[number];
 
 interface NoteArchiverSettings {
@@ -119,6 +119,25 @@ export default class NoteArchiverPlugin extends Plugin {
 				archiveFolder = normalizePath(
 						`${this.settings.archiveFolderName}/${year}/${paddedMonthNumber}-${monthName}`
 				);
+			} else if (this.settings.grouping === "YearCreated") {
+				let year = new Date(targetFile.stat.ctime).getFullYear();
+
+				archiveFolder = normalizePath(
+					`${this.settings.archiveFolderName}/${year}`
+				);
+			} else if (this.settings.grouping === "MonthCreated") {
+				let created = new Date(targetFile.stat.ctime);
+				let year = created.getFullYear();
+				let paddedMonthNumber = (created.getMonth() + 1)
+					.toString()
+					.padStart(2, "0");
+				let monthName = created.toLocaleString("default", {
+					month: "long",
+				});
+
+				archiveFolder = normalizePath(
+					`${this.settings.archiveFolderName}/${year}/${paddedMonthNumber}-${monthName}`
+				);
 			}
 		}
 
@@ -213,10 +232,9 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption("NoGrouping", "Don't group my files")
 					.addOption("Year", "Group by year file is archived")
-					.addOption(
-						"Month",
-						"Group by year and month file is archived"
-					)
+					.addOption("Month", "Group by year and month file is archived")
+					.addOption("YearCreated", "Group by year file was created")
+					.addOption("MonthCreated", "Group by year and month file was created")
 					.setValue(this.plugin.settings.grouping)
 					.onChange(async (value) => {
 						if (
