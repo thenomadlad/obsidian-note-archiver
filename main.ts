@@ -41,14 +41,15 @@ export default class NoteArchiverPlugin extends Plugin {
 				view: MarkdownView
 			) => {
 				if (checking) {
-					return !view.file.path.startsWith(
+					return !view.file?.path.startsWith(
 						this.settings.archiveFolderName
 					);
 				} else {
-					this.archivePage(view.file.path);
+					if (view.file)
+						this.archivePage(view.file.path);
 					return true;
 				}
-			},
+			}
 		});
 
 		// on right-clicking a file
@@ -56,8 +57,8 @@ export default class NoteArchiverPlugin extends Plugin {
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (!file.path.startsWith(this.settings.archiveFolderName)) {
 					menu.addItem((item) => {
-						item.setTitle("📤 Archive file")
-							.setIcon("document")
+						item.setTitle("Archive file")
+							.setIcon("archive")
 							.onClick(async () => {
 								this.archivePage(file.path);
 							});
@@ -70,14 +71,14 @@ export default class NoteArchiverPlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
 				menu.addItem((item) => {
-					let path = view.file?.path;
+					const path = view.file?.path;
 
 					if (
 						path &&
 						!path.startsWith(this.settings.archiveFolderName)
 					) {
-						item.setTitle("📤 Archive file")
-							.setIcon("document")
+						item.setTitle("Archive file")
+							.setIcon("archive")
 							.onClick(async () => {
 								this.archivePage(path ?? "");
 							});
@@ -93,26 +94,25 @@ export default class NoteArchiverPlugin extends Plugin {
 	onunload() {}
 
 	async archivePage(path: string) {
-		let targetFile = this.app.vault.getAbstractFileByPath(path) as TFile;
-
+		const targetFile = this.app.vault.getAbstractFileByPath(path) as TFile;
 		// get and create archive folder
 		let archiveFolder = this.settings.archiveFolderName;
 		if (this.settings.grouping === "NoGrouping") {
 			archiveFolder = this.settings.archiveFolderName;
 		} else {
 			if (this.settings.grouping === "Year") {
-				let year = new Date().getFullYear();
+				const year = new Date().getFullYear();
 
 				archiveFolder = normalizePath(
 					`${this.settings.archiveFolderName}/${year}`
 				);
 			} else if (this.settings.grouping === "Month") {
-				let now = new Date();
-				let year = now.getFullYear();
-				let paddedMonthNumber = (now.getMonth() + 1)
+				const now = new Date();
+				const year = now.getFullYear();
+				const paddedMonthNumber = (now.getMonth() + 1)
 					.toString()
 					.padStart(2, "0");
-				let monthName = now.toLocaleString("default", {
+				const monthName = now.toLocaleString("default", {
 					month: "long",
 				});
 
@@ -123,12 +123,18 @@ export default class NoteArchiverPlugin extends Plugin {
 		}
 
 		// new path for archived file
-		let newPath = normalizePath(`${archiveFolder}/${path}`);
+		const newPath = normalizePath(`${archiveFolder}/${path}`);
 
 		// make sure the folder for the file exists
-		let newFolder = newPath.substring(0, newPath.lastIndexOf('/'));
+		const newFolder = newPath.substring(0, newPath.lastIndexOf('/'));
 		if (this.app.vault.getAbstractFileByPath(newFolder) === null) {
-			await this.app.vault.createFolder(newFolder);
+			try {
+				await this.app.vault.createFolder(newFolder);
+			} catch (error) {
+				const regex = /Folder already exists/i;
+				if (!regex.test(error))
+					throw error;
+			}
 		}
 
 		// move the file
@@ -164,7 +170,7 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// folder path
-		let folderPathSetting = new Setting(containerEl)
+		const folderPathSetting = new Setting(containerEl)
 			.setName("Archive folder")
 			.setDesc("Where should I put your archived files?")
 			.addText((text) =>
@@ -172,7 +178,7 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 					.setPlaceholder("Enter your secret")
 					.setValue(this.plugin.settings.archiveFolderName)
 					.onChange(async (value) => {
-						let folder = normalizePath(value);
+						const folder = normalizePath(value);
 						this.plugin.settings.archiveFolderName = folder;
 						await this.plugin.saveSettings();
 
@@ -183,12 +189,12 @@ class NoteArchiverSettingTab extends PluginSettingTab {
 			);
 
 		// helper message for folder path not existing
-		let folderPathHelpMessage = folderPathSetting.infoEl.createEl("p", {
+		const folderPathHelpMessage = folderPathSetting.infoEl.createEl("p", {
 			text: "",
 			cls: ["setting-item-description", "setting-item-extra-info"],
 		});
-		let updateFolderPathHelpMessage = (folder: string) => {
-			let abstractFile = this.app.vault.getAbstractFileByPath(
+		const updateFolderPathHelpMessage = (folder: string) => {
+			const abstractFile = this.app.vault.getAbstractFileByPath(
 				normalizePath(folder)
 			);
 			if (!abstractFile) {
