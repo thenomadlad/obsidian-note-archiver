@@ -22,9 +22,26 @@ async function setGrouping(grouping: string) {
 	}, grouping);
 }
 
+async function setArchiveFolder(folder: string) {
+	await browser.execute(async (folder) => {
+		const plugin = (app as any).plugins.getPlugin(PLUGIN_ID);
+		if (!plugin) throw new Error(`Plugin ${PLUGIN_ID} not found`);
+		plugin.settings.archiveFolderName = folder;
+		await plugin.saveSettings();
+	}, folder);
+}
+
 async function fileExistsInVault(path: string): Promise<boolean> {
 	return browser.execute((path) => {
 		return app.vault.getAbstractFileByPath(path) !== null;
+	}, path);
+}
+
+// getAbstractFileByPath returns null for hidden (dot-prefixed) folders since
+// Obsidian doesn't index them. Use the vault adapter for filesystem-level checks.
+async function fileExistsOnDisk(path: string): Promise<boolean> {
+	return browser.execute((path) => {
+		return app.vault.adapter.exists(path);
 	}, path);
 }
 
@@ -68,6 +85,43 @@ describe("Note Archiver", function () {
 			).toBe(true);
 			expect(
 				await fileExistsInVault("test-notes/year-grouping.md")
+			).toBe(false);
+		});
+	});
+
+	describe("Hidden archive folder", function () {
+		before(async function () {
+			await setGrouping("NoGrouping");
+			await setArchiveFolder(".archive");
+		});
+
+		after(async function () {
+			await setArchiveFolder("Archive");
+		});
+
+		it("archives first note into hidden folder", async function () {
+			await openNote("test-notes/hidden-folder-1.md");
+			await browser.executeObsidianCommand(ARCHIVE_COMMAND);
+
+			expect(
+				await fileExistsOnDisk(".archive/test-notes/hidden-folder-1.md")
+			).toBe(true);
+			expect(
+				await fileExistsInVault("test-notes/hidden-folder-1.md")
+			).toBe(false);
+		});
+
+		it("archives second note without 'folder already exists' error", async function () {
+			// The hidden folder now exists on disk but getAbstractFileByPath returns null,
+			// so createFolder will be called again — this exercises the try/catch fix.
+			await openNote("test-notes/hidden-folder-2.md");
+			await browser.executeObsidianCommand(ARCHIVE_COMMAND);
+
+			expect(
+				await fileExistsOnDisk(".archive/test-notes/hidden-folder-2.md")
+			).toBe(true);
+			expect(
+				await fileExistsInVault("test-notes/hidden-folder-2.md")
 			).toBe(false);
 		});
 	});
